@@ -9,7 +9,7 @@ export const useProjects = (userId: string) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || userId.trim() === '') {
       setLoading(false);
       return;
     }

@@ -19,6 +19,13 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [currentView, setCurrentView] = useState<string>('landing');
+
+  // Only load projects and project types data when user is authenticated or on landing page
   const {
     projects,
     loading: projectsLoading,
@@ -37,13 +44,8 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
     addProjectPhoto,
     updateProjectPhoto,
     deleteProjectPhoto
-  } = useProjects(currentUser?.id || '');
+  } = useProjects(currentUser?.id || (currentView !== 'landing' ? '' : ''));
   const { projectTypes, loading: typesLoading } = useProjectTypes();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-  const [currentView, setCurrentView] = useState<string>('landing');
 
   const filteredProjects = projects.filter(project => {
     const projectType = projectTypes.find(pt => pt.id === project.typeId);
