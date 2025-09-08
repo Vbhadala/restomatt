@@ -9,9 +9,15 @@ export const useProjectTypes = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // For demo purposes, immediately set to empty and loading false
-    // to prevent Firestore permission errors on landing page
-    if (window.location.pathname === '/' || window.location.hash === '' || window.location.hash === '#landing') {
+    // For demo purposes on public pages, use default data to prevent loading errors
+    const isPublicPage = window.location.pathname === '/' ||
+                       window.location.hash === '' ||
+                       window.location.hash === '#landing';
+
+    const isAdminPage = window.location.hash === '#admin';
+
+    // If it's a public page and not admin, use default content
+    if (isPublicPage && !isAdminPage) {
       setProjectTypes(defaultProjectTypes.map(type => ({
         ...type,
         id: type.id,
@@ -21,6 +27,9 @@ export const useProjectTypes = () => {
       setLoading(false);
       return;
     }
+
+    // For admin page or authenticated views, try to load real data
+    // But with permission error handling
 
     // Real-time listener for project types
     const projectTypesQuery = query(
