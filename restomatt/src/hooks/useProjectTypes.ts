@@ -9,6 +9,19 @@ export const useProjectTypes = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // For demo purposes, immediately set to empty and loading false
+    // to prevent Firestore permission errors on landing page
+    if (window.location.pathname === '/' || window.location.hash === '' || window.location.hash === '#landing') {
+      setProjectTypes(defaultProjectTypes.map(type => ({
+        ...type,
+        id: type.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })));
+      setLoading(false);
+      return;
+    }
+
     // Real-time listener for project types
     const projectTypesQuery = query(
       collection(db, 'projectTypes'),
@@ -22,47 +35,86 @@ export const useProjectTypes = () => {
     );
 
     const userToListener = () => {
+      let typesUnsubscribe: () => void;
+      let materialsUnsubscribe: () => void;
+
       // Listen to project types
-      const typesUnsubscribe = onSnapshot(projectTypesQuery, (projectTypesSnapshot) => {
-        // Listen to materials
-        const materialsUnsubscribe = onSnapshot(materialsQuery, (materialsSnapshot) => {
-          const materials = materialsSnapshot.docs.map(doc => ({
-            ...doc.data(),
-            id: doc.id,
-            createdAt: doc.data().createdAt?.toDate() || new Date(),
-            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-          })) as Material[];
-
-          const typesData = projectTypesSnapshot.docs.map(doc => {
-            const typeData = doc.data();
-            const typeMaterials = materials.filter(m => m.projectTypeId === doc.id);
-
-            return {
-              ...typeData,
+      typesUnsubscribe = onSnapshot(projectTypesQuery,
+        (projectTypesSnapshot) => {
+          materialsUnsubscribe = onSnapshot(materialsQuery, (materialsSnapshot) => {
+            const materials = materialsSnapshot.docs.map(doc => ({
+              ...doc.data(),
               id: doc.id,
-              createdAt: typeData.createdAt?.toDate() || new Date(),
-              updatedAt: typeData.updatedAt?.toDate() || new Date(),
-              materials: typeMaterials,
-            };
-          }) as ProjectType[];
+              createdAt: doc.data().createdAt?.toDate() || new Date(),
+              updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+            })) as Material[];
 
-          // If no data exists, initialize with default data
-          if (typesData.length === 0 && materials.length === 0) {
-            initializeDefaultData();
-          } else {
-            setProjectTypes(typesData);
-          }
+            const typesData = projectTypesSnapshot.docs.map(doc => {
+              const typeData = doc.data();
+              const typeMaterials = materials.filter(m => m.projectTypeId === doc.id);
+
+              return {
+                ...typeData,
+                id: doc.id,
+                createdAt: typeData.createdAt?.toDate() || new Date(),
+                updatedAt: typeData.updatedAt?.toDate() || new Date(),
+                materials: typeMaterials,
+              };
+            }) as ProjectType[];
+
+            // If no data exists, initialize with default data
+            if (typesData.length === 0 && materials.length === 0) {
+              initializeDefaultData();
+            } else {
+              setProjectTypes(typesData);
+            }
+            setLoading(false);
+          }, (error) => {
+            // Handle permission errors gracefully
+            console.warn('Permission denied for materials:', error);
+            // Fall back to default data for demo
+            setProjectTypes(defaultProjectTypes.map(type => ({
+              ...type,
+              id: type.id,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })));
+            setLoading(false);
+          });
+
+          return materialsUnsubscribe;
+        },
+        (error) => {
+          // Handle permission errors gracefully
+          console.warn('Permission denied for project types:', error);
+          // Fall back to default data for demo
+          setProjectTypes(defaultProjectTypes.map(type => ({
+            ...type,
+            id: type.id,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })));
           setLoading(false);
-        });
+        }
+      );
 
-        return () => materialsUnsubscribe();
-      });
-
-      return () => typesUnsubscribe();
+      return typesUnsubscribe!;
     };
 
-    const unsubscribe = userToListener();
-    return () => unsubscribe();
+    try {
+      const unsubscribe = userToListener();
+      return () => unsubscribe?.();
+    } catch (error) {
+      // If anything goes wrong, fall back to default data
+      console.warn('Error setting up Firebase listeners:', error);
+      setProjectTypes(defaultProjectTypes.map(type => ({
+        ...type,
+        id: type.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })));
+      setLoading(false);
+    }
   }, []);
 
   const initializeDefaultData = async () => {
