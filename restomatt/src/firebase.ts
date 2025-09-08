@@ -4,14 +4,14 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  // You'll need to replace these with your actual Firebase project config
-  // Get these from Firebase Console > Project Settings > General > Your apps
+  // Firebase project config for restomatt-4517b
   apiKey: "AIzaSyBibrHzW77iJyHA4fbcwoRm3tIvRRfzzwE",
   authDomain: "restomatt-4517b.firebaseapp.com",
   projectId: "restomatt-4517b",
-  storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+  storageBucket: "restomatt-4517b.firebasestorage.app",
+  messagingSenderId: "68209707252",
+  appId: "1:68209707252:web:b38bdf12ab9db145c7f6a1",
+  measurementId: "G-78C2FVV9N8"
 };
 
 // Initialize Firebase
