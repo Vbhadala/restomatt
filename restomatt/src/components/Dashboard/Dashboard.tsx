@@ -64,9 +64,12 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
       const newProject = await addProject(projectData);
       setSelectedProject(newProject);
       setCurrentView('project-details');
-    } catch (error) {
+      // Close modal after successful creation
+      setIsCreateModalOpen(false);
+    } catch (error: any) {
       console.error('Error creating project:', error);
-      // You might want to show an error message to the user here
+      // Show user-friendly error message
+      alert(error.message || 'Failed to create project. Please try again.');
     }
   };
 

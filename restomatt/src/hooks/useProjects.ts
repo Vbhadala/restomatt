@@ -10,9 +10,12 @@ export const useProjects = (userId: string) => {
 
   useEffect(() => {
     if (!userId || userId.trim() === '') {
+      console.log('useProjects: No user ID provided, not loading projects');
       setLoading(false);
       return;
     }
+
+    console.log('useProjects: Setting up listener for user:', userId);
 
     // Real-time listener for projects
     const q = query(
@@ -22,6 +25,7 @@ export const useProjects = (userId: string) => {
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      console.log(`useProjects: Received ${querySnapshot.docs.length} projects for user ${userId}`);
       const projectsData = querySnapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id,
@@ -33,11 +37,18 @@ export const useProjects = (userId: string) => {
         photos: doc.data().photos || [],
       })) as Project[];
 
+      console.log('useProjects: Setting projects data:', projectsData.length, 'projects');
       setProjects(projectsData);
+      setLoading(false);
+    }, (error) => {
+      console.error('useProjects: Error listening to projects:', error);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('useProjects: Cleaning up listener');
+      unsubscribe();
+    };
   }, [userId]);
 
   // Helper function to update project document in Firestore
@@ -55,6 +66,11 @@ export const useProjects = (userId: string) => {
   };
 
   const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'userId' | 'items' | 'extraCosts' | 'milestones' | 'photos'>) => {
+    // Validate user authentication
+    if (!userId || userId.trim() === '') {
+      throw new Error('User not authenticated. Please log in again.');
+    }
+
     const newProject = {
       ...project,
       userId,
@@ -66,8 +82,34 @@ export const useProjects = (userId: string) => {
       updatedAt: new Date(),
     };
 
-    const docRef = await addDoc(collection(db, 'projects'), newProject);
-    return { ...newProject, id: docRef.id } as Project;
+    console.log('About to create project with:', {
+      projectData: newProject,
+      userIdInHook: userId
+    });
+
+    try {
+      console.log('Creating project for user:', userId); // Debug log
+      const docRef = await addDoc(collection(db, 'projects'), newProject);
+      console.log('Project created successfully:', docRef.id); // Debug log
+      return { ...newProject, id: docRef.id } as Project;
+    } catch (error: any) {
+      console.error('Project creation error details:', {
+        code: error.code,
+        message: error.message,
+        userId,
+        projectData: newProject
+      });
+
+      // Provide more specific error messages
+      if (error.code === 'permission-denied') {
+        throw new Error(`Permission denied. Your user ID (${userId}) may not match the authenticated user. Try refreshing the page and logging in again.`);
+      }
+      if (error.code === 'unavailable') {
+        throw new Error('Network error - your browser may be blocking Firebase connections. Try disabling ad blockers or VPN temporarily.');
+      }
+
+      throw new Error(`Failed to create project: ${error.message}`);
+    }
   };
 
   const updateProject = async (id: string, updates: Partial<Project>) => {

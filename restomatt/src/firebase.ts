@@ -22,6 +22,25 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
+// Debug authentication state
+auth.onAuthStateChanged(async (user) => {
+  console.log('Firebase auth state changed:', user ? {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName
+  } : 'No user');
+
+  if (user) {
+    // Get and log the current user's auth token to verify it's valid
+    try {
+      const token = await user.getIdToken();
+      console.log('Current auth token retrieved successfully (first 50 chars):', token.substring(0, 50));
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+    }
+  }
+});
+
 // Firestore Security Rules to copy into Firebase Console > Firestore Database > Rules
 /*
 rules_version = '2';
@@ -44,7 +63,12 @@ service cloud.firestore {
     // Users can only read/write their own projects
     match /projects/{projectId} {
       allow read, write: if request.auth != null &&
-        request.auth.uid == resource.data.userId;
+        (
+          // For existing documents: check owner
+          (resource != null && request.auth.uid == resource.data.userId) ||
+          // For new documents: check the data being written
+          (resource == null && request.auth.uid == request.resource.data.userId)
+        );
     }
 
     // Collections can only have their own specific documents

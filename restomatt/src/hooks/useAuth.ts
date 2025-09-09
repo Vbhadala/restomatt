@@ -11,38 +11,52 @@ export const useAuth = () => {
 
 
   useEffect(() => {
+    console.log('Setting up auth listener...');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        console.log('Firebase user authenticated:', firebaseUser.uid, firebaseUser.email);
         // Get user data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setCurrentUser({
-            id: firebaseUser.uid,
-            name: userData.name || firebaseUser.displayName || 'User',
-            email: userData.email || firebaseUser.email || '',
-            avatar: firebaseUser.photoURL || '',
-            isAdmin: userData.isAdmin || false,
-          });
-        } else {
-          // Create user document if it doesn't exist
-        const newUser = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          email: firebaseUser.email || '',
-          avatar: firebaseUser.photoURL || '',
-          isAdmin: false, // Default to non-admin
-        };
-        await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-          setCurrentUser(newUser);
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const user = {
+              id: firebaseUser.uid,
+              name: userData.name || firebaseUser.displayName || 'User',
+              email: userData.email || firebaseUser.email || '',
+              avatar: firebaseUser.photoURL || '',
+              isAdmin: userData.isAdmin || false,
+            };
+            setCurrentUser(user);
+            console.log('User data set:', user);
+          } else {
+            // Create user document if it doesn't exist
+            const newUser = {
+              id: firebaseUser.uid,
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email || '',
+              avatar: firebaseUser.photoURL || '',
+              isAdmin: false, // Default to non-admin
+            };
+            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+            setCurrentUser(newUser);
+            console.log('New user created and set:', newUser);
+          }
+        } catch (error) {
+          console.error('Error setting up user data:', error);
+          setCurrentUser(null);
         }
       } else {
+        console.log('No Firebase user - setting to null');
         setCurrentUser(null);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('Cleaning up auth listener');
+      unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
