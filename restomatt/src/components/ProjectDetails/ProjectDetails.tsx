@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Plus, Edit3, Trash2, Calculator, DollarSign, MessageCircle, FileText, Check, X, Download } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ArrowLeft, Plus, Edit3, Trash2, Calculator, DollarSign, MessageCircle, FileText, Check, X, Download, FolderPlus, Folder } from 'lucide-react';
+import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Project, ProjectType, Material, ProjectItem, ExtraCost, Milestone, ProjectPhoto } from '../../types';
+import { Project, ProjectType, Material, ProjectItem, ExtraCost, Milestone, ProjectPhoto, ItemGroup } from '../../types';
 import AddItemModal from './AddItemModal';
 import AddExtraCostModal from './AddExtraCostModal';
+import AddGroupModal from './AddGroupModal';
 import ProjectTimeline from './ProjectTimeline';
 import ProjectPhotoGallery from './ProjectPhotoGallery';
+import TabNavigation from './TabNavigation';
 
 interface ProjectDetailsProps {
   project: Project;
@@ -25,6 +28,9 @@ interface ProjectDetailsProps {
   addProjectPhoto: (projectId: string, photo: Omit<ProjectPhoto, 'id' | 'uploadedAt'>) => Promise<ProjectPhoto>;
   updateProjectPhoto: (projectId: string, photoId: string, updates: Partial<ProjectPhoto>) => Promise<void>;
   deleteProjectPhoto: (projectId: string, photoId: string) => Promise<void>;
+  addItemGroup: (projectId: string, groupData: Omit<ItemGroup, 'id' | 'order'>) => Promise<ItemGroup>;
+  updateItemGroup: (projectId: string, groupId: string, updates: Partial<ItemGroup>) => Promise<void>;
+  deleteItemGroup: (projectId: string, groupId: string) => Promise<void>;
 }
 
 const ProjectDetails: React.FC<ProjectDetailsProps> = ({
@@ -43,18 +49,25 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   deleteMilestone,
   addProjectPhoto,
   updateProjectPhoto,
-  deleteProjectPhoto
+  deleteProjectPhoto,
+  addItemGroup,
+  updateItemGroup,
+  deleteItemGroup
 }) => {
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [isAddExtraCostModalOpen, setIsAddExtraCostModalOpen] = useState(false);
+  const [isAddGroupModalOpen, setIsAddGroupModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectItem | null>(null);
   const [editingExtraCost, setEditingExtraCost] = useState<ExtraCost | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ItemGroup | null>(null);
   const [isEditingProjectName, setIsEditingProjectName] = useState(false);
   const [editedProjectName, setEditedProjectName] = useState(project.name);
   const [isEditingCustomerInfo, setIsEditingCustomerInfo] = useState(false);
   const [editedCustomerName, setEditedCustomerName] = useState(project.customerName || '');
   const [editedCustomerMobile, setEditedCustomerMobile] = useState(project.customerMobile || '');
   const [editedCustomerAddress, setEditedCustomerAddress] = useState(project.customerAddress || '');
+  const [activeTab, setActiveTab] = useState<'items' | 'costs' | 'timeline' | 'photos'>('items');
+  const [isLoading, setIsLoading] = useState(false);
 
   const projectType = projectTypes.find(pt => pt.id === project.typeId);
 
@@ -111,9 +124,12 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     quantity: number;
     note?: string;
     customRate?: number;
+    groupId?: string;
   }) => {
     const material = allMaterials.find(m => m.id === itemData.materialId);
     if (material) {
+      setIsLoading(true);
+      const toastId = toast.loading('Adding item...');
       try {
         // Ensure all data is properly formatted and no undefined values
         const cleanItemData: any = {
@@ -131,16 +147,21 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
           cleanItemData.customRate = itemData.customRate;
         }
 
+        // Only add groupId if it has a valid value (not empty string)
+        if (itemData.groupId && itemData.groupId.trim() !== '') {
+          cleanItemData.groupId = itemData.groupId.trim();
+        }
+
         // Use custom rate if provided, otherwise use admin rate
         const rateToUse = itemData.customRate || material.ratePerSqft;
         await addProjectItem(project.id, cleanItemData, rateToUse);
-        // The hook will automatically update the project state via real-time listener
-        // No need to manually update here as it would cause duplicates
+        toast.success('Item added successfully!', { id: toastId });
         setIsAddItemModalOpen(false);
       } catch (error) {
         console.error('Error adding item:', error);
-        console.error('Item data:', itemData);
-        // You might want to show an error message to the user here
+        toast.error('Failed to add item. Please try again.', { id: toastId });
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -150,7 +171,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     setIsAddItemModalOpen(true);
   };
 
-  const handleUpdateItem = (itemData: {
+  const handleUpdateItem = async (itemData: {
     name: string;
     length: number;
     width: number;
@@ -159,53 +180,74 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     quantity: number;
     note?: string;
     customRate?: number;
+    groupId?: string;
   }) => {
     if (editingItem) {
       const material = allMaterials.find(m => m.id === itemData.materialId);
       if (material) {
-        const rateToUse = itemData.customRate || material.ratePerSqft;
-        updateProjectItem(project.id, editingItem.id, itemData, rateToUse);
+        setIsLoading(true);
+        const toastId = toast.loading('Updating item...');
+        try {
+          const rateToUse = itemData.customRate !== undefined ? itemData.customRate : material.ratePerSqft;
 
-        // Calculate updated values
-        const sqft = (itemData.length * itemData.width ) / 92903;
-        const amount = sqft * rateToUse * itemData.quantity;
+          // Clean the data to remove undefined values
+          const cleanItemData: Partial<ProjectItem> = {
+            name: itemData.name,
+            length: itemData.length,
+            width: itemData.width,
+            depth: itemData.depth,
+            materialId: itemData.materialId,
+            quantity: itemData.quantity,
+          };
 
-        // Update the project with the modified item
-        const updatedItems = project.items.map(item =>
-          item.id === editingItem.id
-            ? {
-                ...item,
-                ...itemData,
-                sqft: Math.round(sqft * 100) / 100,
-                amount: Math.round(amount * 100) / 100,
-              }
-            : item
-        );
+          // Only add note if it has a value
+          if (itemData.note !== undefined && itemData.note !== '') {
+            cleanItemData.note = itemData.note;
+          }
 
-        const updatedProject = {
-          ...project,
-          items: updatedItems,
-          updatedAt: new Date()
-        };
-        onUpdateProject(updatedProject);
-        setEditingItem(null);
-        setIsAddItemModalOpen(false);
+          // Only add customRate if it's defined
+          if (itemData.customRate !== undefined) {
+            cleanItemData.customRate = itemData.customRate;
+          }
+
+          // Handle groupId - can be undefined (remove group), empty string (no group), or a group ID
+          if (itemData.groupId !== undefined) {
+            if (itemData.groupId === '') {
+              // If empty string, we want to remove the groupId field
+              cleanItemData.groupId = undefined;
+            } else {
+              // If it's a group ID, set it
+              cleanItemData.groupId = itemData.groupId;
+            }
+          }
+
+          await updateProjectItem(project.id, editingItem.id, cleanItemData, rateToUse);
+          toast.success('Item updated successfully!', { id: toastId });
+          setEditingItem(null);
+          setIsAddItemModalOpen(false);
+        } catch (error) {
+          console.error('Error updating item:', error);
+          toast.error('Failed to update item. Please try again.', { id: toastId });
+        } finally {
+          setIsLoading(false);
+        }
       }
     }
   };
 
-  const handleDeleteItem = (itemId: string) => {
+  const handleDeleteItem = async (itemId: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
-      deleteProjectItem(project.id, itemId);
-      
-      // Update the project by removing the item
-      const updatedItems = project.items.filter(item => item.id !== itemId);
-      const updatedProject = {
-        ...project,
-        items: updatedItems,
-        updatedAt: new Date()
-      };
-      onUpdateProject(updatedProject);
+      setIsLoading(true);
+      const toastId = toast.loading('Deleting item...');
+      try {
+        await deleteProjectItem(project.id, itemId);
+        toast.success('Item deleted successfully!', { id: toastId });
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        toast.error('Failed to delete item. Please try again.', { id: toastId });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -214,13 +256,17 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     amount: number;
     note?: string;
   }) => {
+    setIsLoading(true);
+    const toastId = toast.loading('Adding cost...');
     try {
-      const newExtraCost = await addExtraCost(project.id, extraCostData);
-      // The hook will automatically update the project state via real-time listener
-      // No need to manually update here as it would cause duplicates
+      await addExtraCost(project.id, extraCostData);
+      toast.success('Cost added successfully!', { id: toastId });
       setIsAddExtraCostModalOpen(false);
     } catch (error) {
       console.error('Error adding extra cost:', error);
+      toast.error('Failed to add cost. Please try again.', { id: toastId });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -229,44 +275,41 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     setIsAddExtraCostModalOpen(true);
   };
 
-  const handleUpdateExtraCost = (extraCostData: {
+  const handleUpdateExtraCost = async (extraCostData: {
     name: string;
     amount: number;
     note?: string;
   }) => {
     if (editingExtraCost) {
-      updateExtraCost(project.id, editingExtraCost.id, extraCostData);
-      
-      // Update the project with the modified extra cost
-      const updatedExtraCosts = (project.extraCosts || []).map(cost => 
-        cost.id === editingExtraCost.id 
-          ? { ...cost, ...extraCostData }
-          : cost
-      );
-      
-      const updatedProject = {
-        ...project,
-        extraCosts: updatedExtraCosts,
-        updatedAt: new Date()
-      };
-      onUpdateProject(updatedProject);
-      setEditingExtraCost(null);
-      setIsAddExtraCostModalOpen(false);
+      setIsLoading(true);
+      const toastId = toast.loading('Updating cost...');
+      try {
+        await updateExtraCost(project.id, editingExtraCost.id, extraCostData);
+        toast.success('Cost updated successfully!', { id: toastId });
+        setEditingExtraCost(null);
+        setIsAddExtraCostModalOpen(false);
+      } catch (error) {
+        console.error('Error updating extra cost:', error);
+        toast.error('Failed to update cost. Please try again.', { id: toastId });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  const handleDeleteExtraCost = (extraCostId: string) => {
+  const handleDeleteExtraCost = async (extraCostId: string) => {
     if (window.confirm('Are you sure you want to delete this extra cost?')) {
-      deleteExtraCost(project.id, extraCostId);
-      
-      // Update the project by removing the extra cost
-      const updatedExtraCosts = (project.extraCosts || []).filter(cost => cost.id !== extraCostId);
-      const updatedProject = {
-        ...project,
-        extraCosts: updatedExtraCosts,
-        updatedAt: new Date()
-      };
-      onUpdateProject(updatedProject);
+      setIsLoading(true);
+      const toastId = toast.loading('Deleting cost...');
+      try {
+        await deleteExtraCost(project.id, extraCostId);
+        toast.success('Cost deleted successfully!', { id: toastId });
+      } catch (error) {
+        console.error('Error deleting extra cost:', error);
+        toast.error('Failed to delete cost. Please try again.', { id: toastId });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -275,6 +318,66 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     setIsAddExtraCostModalOpen(false);
     setEditingItem(null);
     setEditingExtraCost(null);
+  };
+
+  // Group handlers
+  const handleAddGroup = async (groupData: { name: string }) => {
+    setIsLoading(true);
+    const toastId = toast.loading('Adding group...');
+    try {
+      await addItemGroup(project.id, groupData);
+      toast.success('Group added successfully!', { id: toastId });
+      setIsAddGroupModalOpen(false);
+    } catch (error) {
+      console.error('Error adding group:', error);
+      toast.error('Failed to add group. Please try again.', { id: toastId });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditGroup = (group: ItemGroup) => {
+    setEditingGroup(group);
+    setIsAddGroupModalOpen(true);
+  };
+
+  const handleUpdateGroup = async (groupData: { name: string }) => {
+    if (editingGroup) {
+      setIsLoading(true);
+      const toastId = toast.loading('Updating group...');
+      try {
+        await updateItemGroup(project.id, editingGroup.id, groupData);
+        toast.success('Group updated successfully!', { id: toastId });
+        setEditingGroup(null);
+        setIsAddGroupModalOpen(false);
+      } catch (error) {
+        console.error('Error updating group:', error);
+        toast.error('Failed to update group. Please try again.', { id: toastId });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (window.confirm('Are you sure you want to delete this group? Items in this group will be ungrouped.')) {
+      setIsLoading(true);
+      const toastId = toast.loading('Deleting group...');
+      try {
+        await deleteItemGroup(project.id, groupId);
+        toast.success('Group deleted successfully!', { id: toastId });
+      } catch (error) {
+        console.error('Error deleting group:', error);
+        toast.error('Failed to delete group. Please try again.', { id: toastId });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleCloseGroupModal = () => {
+    setIsAddGroupModalOpen(false);
+    setEditingGroup(null);
   };
 
   const getProjectItemsTotal = () => {
@@ -542,27 +645,63 @@ Please confirm the booking and next steps.`;
     window.open(whatsappUrl, '_blank');
   };
 
+  // Group items by groupId
+  const groupedItems = useMemo(() => {
+    const groups: { [key: string]: ProjectItem[] } = {};
+    const ungrouped: ProjectItem[] = [];
+
+    (project.items || []).forEach(item => {
+      if (item.groupId) {
+        if (!groups[item.groupId]) {
+          groups[item.groupId] = [];
+        }
+        groups[item.groupId].push(item);
+      } else {
+        ungrouped.push(item);
+      }
+    });
+
+    return { groups, ungrouped };
+  }, [project.items]);
+
+  // Calculate group total
+  const getGroupTotal = (groupId: string) => {
+    const items = groupedItems.groups[groupId] || [];
+    return items.reduce((sum, item) => sum + (item.amount || 0), 0);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 relative">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4 sm:p-6 shadow-xl flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-amber-600"></div>
+            <span className="text-sm sm:text-base text-gray-700 font-medium">Processing...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-4 sm:mb-6 md:mb-8">
         <button
           onClick={onBack}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-3 sm:mb-4 transition-colors text-sm sm:text-base"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Projects</span>
         </button>
-        
-        <div className="flex items-center justify-between">
-          <div className="flex-1 mr-4">
+
+        {/* Project Title and Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex-1">
             {isEditingProjectName ? (
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={editedProjectName}
                   onChange={(e) => setEditedProjectName(e.target.value)}
-                  className="text-2xl font-bold text-gray-900 bg-white border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent flex-1"
+                  className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 bg-white border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-amber-500 focus:border-transparent flex-1"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSaveProjectName();
@@ -571,144 +710,170 @@ Please confirm the booking and next steps.`;
                 />
                 <button
                   onClick={handleSaveProjectName}
-                  className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                  title="Save project name"
+                  className="p-1.5 sm:p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
+                  title="Save"
                 >
-                  <Check className="h-5 w-5" />
+                  <Check className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
                 <button
                   onClick={handleCancelEditProjectName}
-                  className="p-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                  title="Cancel editing"
+                  className="p-1.5 sm:p-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex-shrink-0"
+                  title="Cancel"
                 >
-                  <X className="h-5 w-5" />
+                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
             ) : (
-              <div className="flex items-center space-x-3">
-                <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{project.name}</h1>
                 <button
                   onClick={() => setIsEditingProjectName(true)}
-                  className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                  className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors flex-shrink-0"
                   title="Edit project name"
                 >
-                  <Edit3 className="h-4 w-4" />
+                  <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </div>
             )}
-            <p className="text-gray-600 mt-2">{projectType?.name} Project</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">{projectType?.name} Project</p>
           </div>
-          
-          {/* Customer Information Section */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-gray-700">Customer Information</h3>
-              {!isEditingCustomerInfo && (
-                <button
-                  onClick={() => setIsEditingCustomerInfo(true)}
-                  className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                  title="Edit customer information"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            
-            {isEditingCustomerInfo ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Customer Name</label>
-                    <input
-                      type="text"
-                      value={editedCustomerName}
-                      onChange={(e) => setEditedCustomerName(e.target.value)}
-                      placeholder="Enter customer name"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Mobile Number</label>
-                    <input
-                      type="tel"
-                      value={editedCustomerMobile}
-                      onChange={(e) => setEditedCustomerMobile(e.target.value)}
-                      placeholder="Enter mobile number"
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
-                  <textarea
-                    value={editedCustomerAddress}
-                    onChange={(e) => setEditedCustomerAddress(e.target.value)}
-                    placeholder="Enter customer address"
-                    rows={2}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleSaveCustomerInfo}
-                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center space-x-1"
-                  >
-                    <Check className="h-3 w-3" />
-                    <span>Save</span>
-                  </button>
-                  <button
-                    onClick={handleCancelEditCustomerInfo}
-                    className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center space-x-1"
-                  >
-                    <X className="h-3 w-3" />
-                    <span>Cancel</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Name:</span>
-                  <p className="font-medium text-gray-900">{project.customerName || 'Not specified'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Mobile:</span>
-                  <p className="font-medium text-gray-900">{project.customerMobile || 'Not specified'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Address:</span>
-                  <p className="font-medium text-gray-900">{project.customerAddress || 'Not specified'}</p>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleExportPDF}
-              className="flex items-center space-x-2 px-4 py-2 border border-amber-600 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
-            >
-              <Download className="h-4 w-4" />
-              <span>Export PDF</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
-      {/* Items Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Project Items</h2>
           <button
-            onClick={() => setIsAddItemModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+            onClick={handleExportPDF}
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-sm sm:text-base border-2 border-amber-600 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors font-medium flex-shrink-0"
           >
-            <Plus className="h-4 w-4" />
-            <span>Add Item</span>
+            <Download className="h-4 w-4" />
+            <span>Export PDF</span>
           </button>
         </div>
 
-        {(project.items || []).length === 0 ? (
+        {/* Customer Information Section - More Compact */}
+        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 sm:p-4 border border-gray-200">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <span>Customer</span>
+            </h3>
+            {!isEditingCustomerInfo && (
+              <button
+                onClick={() => setIsEditingCustomerInfo(true)}
+                className="p-1 text-gray-400 hover:text-amber-600 hover:bg-white/50 rounded transition-colors"
+                title="Edit"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {isEditingCustomerInfo ? (
+            <div className="space-y-2 sm:space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={editedCustomerName}
+                    onChange={(e) => setEditedCustomerName(e.target.value)}
+                    placeholder="Customer name"
+                    className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Mobile</label>
+                  <input
+                    type="tel"
+                    value={editedCustomerMobile}
+                    onChange={(e) => setEditedCustomerMobile(e.target.value)}
+                    placeholder="Mobile number"
+                    className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
+                <textarea
+                  value={editedCustomerAddress}
+                  onChange={(e) => setEditedCustomerAddress(e.target.value)}
+                  placeholder="Customer address"
+                  rows={2}
+                  className="w-full px-2.5 py-1.5 text-xs sm:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveCustomerInfo}
+                  className="flex-1 px-3 py-1.5 text-xs sm:text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Check className="h-3 w-3" />
+                  <span>Save</span>
+                </button>
+                <button
+                  onClick={handleCancelEditCustomerInfo}
+                  className="flex-1 px-3 py-1.5 text-xs sm:text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors flex items-center justify-center gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
+              <div>
+                <span className="text-gray-600 text-xs">Name</span>
+                <p className="font-medium text-gray-900 truncate">{project.customerName || 'Not set'}</p>
+              </div>
+              <div>
+                <span className="text-gray-600 text-xs">Mobile</span>
+                <p className="font-medium text-gray-900">{project.customerMobile || 'Not set'}</p>
+              </div>
+              <div className="sm:col-span-1">
+                <span className="text-gray-600 text-xs">Address</span>
+                <p className="font-medium text-gray-900 truncate sm:truncate">{project.customerAddress || 'Not set'}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6 md:mb-8 overflow-hidden">
+        <TabNavigation
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          itemsCount={project.items?.length || 0}
+          costsCount={project.extraCosts?.length || 0}
+          milestonesCount={project.milestones?.length || 0}
+          photosCount={project.photos?.length || 0}
+        />
+
+        <div className="p-3 sm:p-4 md:p-6">
+          {/* Items Tab */}
+          {activeTab === 'items' && (
+            <div>
+      {/* Items Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-4 sm:mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-gray-200 gap-3 sm:gap-0">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Project Items</h2>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => setIsAddItemModalOpen(true)}
+              className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Add Item</span>
+              <span className="xs:hidden">Item</span>
+            </button>
+            <button
+              onClick={() => setIsAddGroupModalOpen(true)}
+              className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base border border-amber-600 text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
+            >
+              <FolderPlus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Add Group</span>
+              <span className="xs:hidden">Group</span>
+            </button>
+          </div>
+        </div>
+
+        {(project.items || []).length === 0 && (project.itemGroups || []).length === 0 ? (
           <div className="text-center py-12">
             <Calculator className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No items added yet</h3>
@@ -722,110 +887,254 @@ Please confirm the booking and next steps.`;
             </button>
           </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Item Details
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Dimensions (W×L×D)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Material
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Rate/Sq Ft
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Qty
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Sq Ft
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {(project.items || []).map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{item.name || 'Unnamed Item'}</div>
-                          {item.note && (
-                            <div className="flex items-start space-x-1 mt-1">
-                              <FileText className="h-3 w-3 text-gray-400 mt-0.5 flex-shrink-0" />
-                              <div className="text-xs text-gray-500 leading-relaxed">{item.note}</div>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.width || 0} × {item.length || 0} × {item.depth || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {getMaterialName(item.materialId || '')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ₹{getActualMaterialRate(item).toFixed(2)}/sq ft
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.quantity || 1}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.sqft || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm font-medium text-green-600">
-                          <span className="mr-1">₹</span>
-                          {(item.amount || 0).toFixed(2)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditItem(item)}
-                            className="text-amber-600 hover:text-amber-900 transition-colors"
-                            title="Edit item"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="text-red-600 hover:text-red-900 transition-colors"
-                            title="Delete item"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-4 sm:space-y-6">
+            {/* Render grouped items */}
+            {(project.itemGroups || []).map(group => {
+              const itemsInGroup = groupedItems.groups[group.id] || [];
+
+              return (
+                <div key={group.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Group Header - Responsive */}
+                  <div className="bg-gray-50 px-3 sm:px-4 md:px-6 py-2 sm:py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                    <div className="flex items-center space-x-1.5 sm:space-x-2">
+                      <Folder className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 flex-shrink-0" />
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{group.name}</h3>
+                      <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">({itemsInGroup.length})</span>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
+                      <div className="text-xs sm:text-sm font-medium text-gray-700">
+                        <span className="hidden sm:inline">Group Total: </span>
+                        <span className="text-amber-600">₹{getGroupTotal(group.id).toFixed(2)}</span>
+                      </div>
+                      <div className="flex space-x-1.5 sm:space-x-2">
+                        <button
+                          onClick={() => handleEditGroup(group)}
+                          className="p-1 sm:p-1.5 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded transition-colors"
+                          title="Edit group"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGroup(group.id)}
+                          className="p-1 sm:p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
+                          title="Delete group"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  {itemsInGroup.length === 0 ? (
+                    <div className="px-4 sm:px-6 py-6 sm:py-8 text-center text-gray-500">
+                      <p className="text-xs sm:text-sm">No items in this group yet</p>
+                      <p className="text-xs mt-1">Add items and assign them to this group</p>
+                    </div>
+                  ) : (
+                  <div className="overflow-x-auto -mx-px">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Item Details
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Dimensions
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Material
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Rate
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Qty
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                            Sq Ft
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {itemsInGroup.map((item) => {
+                          const material = allMaterials.find(m => m.id === item.materialId);
+                          return (
+                            <tr key={item.id} className="hover:bg-gray-50">
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+                                <div className="text-xs sm:text-sm font-medium text-gray-900">{item.name}</div>
+                                {item.note && (
+                                  <div className="text-xs text-gray-500 mt-1">{item.note}</div>
+                                )}
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                                {item.length}″×{item.width}″×{item.depth}″
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
+                                <div className="max-w-[100px] sm:max-w-none truncate">{material?.name || 'Unknown'}</div>
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                                ₹{(item.customRate !== undefined ? item.customRate : material?.ratePerSqft || 0).toFixed(2)}
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                                {item.quantity}
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">
+                                {item.sqft.toFixed(2)}
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
+                                ₹{item.amount.toFixed(2)}
+                              </td>
+                              <td className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                                <div className="flex space-x-1 sm:space-x-2">
+                                  <button
+                                    onClick={() => handleEditItem(item)}
+                                    className="p-1 sm:p-1.5 text-amber-600 hover:text-amber-900 hover:bg-amber-50 rounded transition-colors"
+                                    title="Edit item"
+                                  >
+                                    <Edit3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    className="p-1 sm:p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-colors"
+                                    title="Delete item"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Ungrouped items */}
+            {groupedItems.ungrouped.length > 0 && (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-md font-semibold text-gray-900">Ungrouped Items</h3>
+                    <span className="text-sm text-gray-500">({groupedItems.ungrouped.length} items)</span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Item Details
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Dimensions (W×L×D)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Material
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rate/Sq Ft
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Qty
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Sq Ft
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {groupedItems.ungrouped.map((item) => {
+                        const material = allMaterials.find(m => m.id === item.materialId);
+                        return (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                              {item.note && (
+                                <div className="text-xs text-gray-500 mt-1">{item.note}</div>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.length}″ × {item.width}″ × {item.depth}″
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {material?.name || 'Unknown'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              ₹{(item.customRate !== undefined ? item.customRate : material?.ratePerSqft || 0).toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.quantity}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.sqft.toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              ₹{item.amount.toFixed(2)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEditItem(item)}
+                                  className="text-amber-600 hover:text-amber-900 transition-colors"
+                                  title="Edit item"
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteItem(item.id)}
+                                  className="text-red-600 hover:text-red-900 transition-colors"
+                                  title="Delete item"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Project Items Subtotal */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-4 bg-gray-50 border border-gray-200 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-medium text-gray-900">Project Items Subtotal:</span>
-                <div className="flex items-center text-xl font-bold text-green-600">
-                  <span className="mr-1">₹</span>
+                <div className="flex items-center text-xl font-bold text-amber-600">
+                  <span className="mr-2">₹</span>
                   {getProjectItemsTotal().toFixed(2)}
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
+            </div>
+          )}
 
+          {/* Costs Tab */}
+          {activeTab === 'costs' && (
+            <div>
       {/* Extra Costs Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -908,6 +1217,12 @@ Please confirm the booking and next steps.`;
         )}
       </div>
 
+            </div>
+          )}
+
+          {/* Timeline Tab */}
+          {activeTab === 'timeline' && (
+            <div>
       {/* Project Timeline */}
       <ProjectTimeline
         milestones={project.milestones}
@@ -916,6 +1231,12 @@ Please confirm the booking and next steps.`;
         onDeleteMilestone={(milestoneId) => deleteMilestone(project.id, milestoneId)}
       />
 
+            </div>
+          )}
+
+          {/* Photos Tab */}
+          {activeTab === 'photos' && (
+            <div>
       {/* Project Photo Gallery */}
       <ProjectPhotoGallery
         photos={project.photos}
@@ -923,6 +1244,11 @@ Please confirm the booking and next steps.`;
         onUpdatePhoto={(photoId, updates) => updateProjectPhoto(project.id, photoId, updates)}
         onDeletePhoto={(photoId) => deleteProjectPhoto(project.id, photoId)}
       />
+
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Final Total and Book Now */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -953,6 +1279,7 @@ Please confirm the booking and next steps.`;
         onClose={handleCloseModals}
         onAddItem={editingItem ? handleUpdateItem : handleAddItem}
         materials={allMaterials}
+        itemGroups={project.itemGroups || []}
         editingItem={editingItem}
       />
 
@@ -961,6 +1288,12 @@ Please confirm the booking and next steps.`;
         onClose={handleCloseModals}
         onAddExtraCost={editingExtraCost ? handleUpdateExtraCost : handleAddExtraCost}
         editingExtraCost={editingExtraCost}
+      />
+      <AddGroupModal
+        isOpen={isAddGroupModalOpen}
+        onClose={handleCloseGroupModal}
+        onAddGroup={editingGroup ? handleUpdateGroup : handleAddGroup}
+        editingGroup={editingGroup}
       />
     </div>
   );

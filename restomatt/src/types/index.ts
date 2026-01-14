@@ -6,6 +6,7 @@ export interface Project {
   customerMobile?: string;
   customerAddress?: string;
   items: ProjectItem[];
+  itemGroups?: ItemGroup[];
   extraCosts: ExtraCost[];
   milestones: Milestone[];
   photos: ProjectPhoto[];
@@ -26,6 +27,13 @@ export interface ProjectItem {
   sqft: number;
   amount: number;
   customRate?: number; // Allow users to override admin material rate
+  groupId?: string; // Optional group assignment
+}
+
+export interface ItemGroup {
+  id: string;
+  name: string;
+  order: number;
 }
 
 export interface ExtraCost {

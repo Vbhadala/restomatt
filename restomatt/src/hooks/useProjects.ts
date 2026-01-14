@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, doc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../firebase';
-import { Project, ProjectItem, ExtraCost, Milestone, ProjectPhoto } from '../types';
+import { Project, ProjectItem, ExtraCost, Milestone, ProjectPhoto, ItemGroup } from '../types';
 
 export const useProjects = (userId: string) => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -32,6 +32,7 @@ export const useProjects = (userId: string) => {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date(),
         items: doc.data().items || [],
+        itemGroups: doc.data().itemGroups || [],
         extraCosts: doc.data().extraCosts || [],
         milestones: doc.data().milestones || [],
         photos: doc.data().photos || [],
@@ -75,6 +76,7 @@ export const useProjects = (userId: string) => {
       ...project,
       userId,
       items: [],
+      itemGroups: [],
       extraCosts: [],
       milestones: [],
       photos: [],
@@ -169,6 +171,12 @@ export const useProjects = (userId: string) => {
     const updatedItems = project.items.map(item => {
       if (item.id === itemId) {
         const updatedItem = { ...item, ...updates };
+
+        // Remove groupId if it's explicitly set to undefined
+        if ('groupId' in updates && updates.groupId === undefined) {
+          delete updatedItem.groupId;
+        }
+
         const sqft = (updatedItem.length * updatedItem.width) / 92903;
         const amount = sqft * materialRate * updatedItem.quantity;
         return {
@@ -303,6 +311,56 @@ export const useProjects = (userId: string) => {
     await updateProjectDoc(projectId, { photos: updatedPhotos });
   };
 
+  // Item Group Operations
+  const addItemGroup = async (projectId: string, groupData: Omit<ItemGroup, 'id' | 'order'>): Promise<ItemGroup> => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) throw new Error('Project not found');
+
+    const newGroup: ItemGroup = {
+      ...groupData,
+      id: `group_${Date.now()}`,
+      order: (project.itemGroups || []).length,
+    };
+
+    const updatedGroups = [...(project.itemGroups || []), newGroup];
+    await updateProjectDoc(projectId, { itemGroups: updatedGroups });
+
+    return newGroup;
+  };
+
+  const updateItemGroup = async (projectId: string, groupId: string, updates: Partial<ItemGroup>): Promise<void> => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) throw new Error('Project not found');
+
+    const updatedGroups = (project.itemGroups || []).map(group =>
+      group.id === groupId ? { ...group, ...updates } : group
+    );
+
+    await updateProjectDoc(projectId, { itemGroups: updatedGroups });
+  };
+
+  const deleteItemGroup = async (projectId: string, groupId: string): Promise<void> => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) throw new Error('Project not found');
+
+    // Remove the group
+    const updatedGroups = (project.itemGroups || []).filter(group => group.id !== groupId);
+
+    // Remove groupId from all items that were in this group
+    const updatedItems = project.items.map(item => {
+      if (item.groupId === groupId) {
+        const { groupId: _, ...itemWithoutGroup } = item;
+        return itemWithoutGroup;
+      }
+      return item;
+    });
+
+    await updateProjectDoc(projectId, {
+      itemGroups: updatedGroups,
+      items: updatedItems
+    });
+  };
+
   return {
     projects,
     loading,
@@ -321,5 +379,8 @@ export const useProjects = (userId: string) => {
     addProjectPhoto,
     updateProjectPhoto,
     deleteProjectPhoto,
+    addItemGroup,
+    updateItemGroup,
+    deleteItemGroup,
   };
 };

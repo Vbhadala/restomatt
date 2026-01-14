@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Home, LogIn } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useProjects } from '../../hooks/useProjects';
 import { useProjectTypes } from '../../hooks/useProjectTypes';
 import { useAuth } from '../../hooks/useAuth';
@@ -43,7 +44,10 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
     deleteMilestone,
     addProjectPhoto,
     updateProjectPhoto,
-    deleteProjectPhoto
+    deleteProjectPhoto,
+    addItemGroup,
+    updateItemGroup,
+    deleteItemGroup
   } = useProjects(currentUser?.id || (currentView !== 'landing' ? '' : ''));
   const { projectTypes, loading: typesLoading } = useProjectTypes();
 
@@ -60,16 +64,16 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
     customerAddress?: string;
     typeId: string;
   }) => {
+    const toastId = toast.loading('Creating project...');
     try {
       const newProject = await addProject(projectData);
+      toast.success('Project created successfully!', { id: toastId });
       setSelectedProject(newProject);
       setCurrentView('project-details');
-      // Close modal after successful creation
       setIsCreateModalOpen(false);
     } catch (error: any) {
       console.error('Error creating project:', error);
-      // Show user-friendly error message
-      alert(error.message || 'Failed to create project. Please try again.');
+      toast.error(error.message || 'Failed to create project. Please try again.', { id: toastId });
     }
   };
 
@@ -107,10 +111,13 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
       return;
     }
     if (window.confirm('Are you sure you want to delete this project?')) {
+      const toastId = toast.loading('Deleting project...');
       try {
         await deleteProject(id);
+        toast.success('Project deleted successfully!', { id: toastId });
       } catch (error) {
         console.error('Error deleting project:', error);
+        toast.error('Failed to delete project. Please try again.', { id: toastId });
       }
     }
   };
@@ -241,6 +248,9 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onShowLogin }) => {
           addProjectPhoto={addProjectPhoto}
           updateProjectPhoto={updateProjectPhoto}
           deleteProjectPhoto={deleteProjectPhoto}
+          addItemGroup={addItemGroup}
+          updateItemGroup={updateItemGroup}
+          deleteItemGroup={deleteItemGroup}
         />
       </div>
     );
