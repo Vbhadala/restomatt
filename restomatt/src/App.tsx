@@ -1,10 +1,102 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { User } from './types';
-import Dashboard from './components/Dashboard/Dashboard';
+import LandingPage from './components/LandingPage/LandingPage';
+import AppPage from './components/AppPage/AppPage';
+import AdminPage from './components/AdminPage/AdminPage';
+import CollectionPage from './components/CollectionPage/CollectionPage';
 import LoginModal from './components/LoginModal/LoginModal';
+import { Collection } from './data/collections';
+
+// Protected Route component
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  currentUser: User | null;
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, currentUser }) => {
+  if (!currentUser) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Main App Routes component
+interface AppRoutesProps {
+  currentUser: User | null;
+  onShowLogin: () => void;
+}
+
+const AppRoutes: React.FC<AppRoutesProps> = ({ currentUser, onShowLogin }) => {
+  const navigate = useNavigate();
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+
+  const handleStartProject = () => {
+    if (!currentUser) {
+      onShowLogin();
+      return;
+    }
+    navigate('/app');
+  };
+
+  const handleViewCollection = (collection: Collection) => {
+    if (!currentUser) {
+      onShowLogin();
+      return;
+    }
+    setSelectedCollection(collection);
+    navigate('/collection');
+  };
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            onStartProject={handleStartProject}
+            onViewCollection={handleViewCollection}
+            isAuthenticated={!!currentUser}
+          />
+        }
+      />
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            {currentUser && <AppPage currentUser={currentUser} />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            {currentUser && <AdminPage currentUser={currentUser} />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/collection"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            {selectedCollection && (
+              <CollectionPage
+                collection={selectedCollection}
+                onBack={() => navigate('/')}
+                onStartProject={handleStartProject}
+              />
+            )}
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -15,7 +107,6 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // User is signed in
-        // We'll handle user data in the Dashboard component
         // Check if user is admin based on a custom claim or Firestore
         const adminClaim = await firebaseUser.getIdTokenResult().catch(() => null);
         const isAdminFromToken = adminClaim?.claims?.admin === true;
@@ -81,15 +172,10 @@ function App() {
   }
 
   return (
-    <>
-      <Dashboard
-        currentUser={currentUser}
-        onShowLogin={handleShowLogin}
-      />
-      {showLoginModal && (
-        <LoginModal onClose={handleLoginClose} />
-      )}
-    </>
+    <Router>
+      <AppRoutes currentUser={currentUser} onShowLogin={handleShowLogin} />
+      {showLoginModal && <LoginModal onClose={handleLoginClose} />}
+    </Router>
   );
 }
 

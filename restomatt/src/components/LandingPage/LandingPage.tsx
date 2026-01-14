@@ -5,9 +5,10 @@ import { collections, Collection } from '../../data/collections';
 interface LandingPageProps {
   onStartProject: () => void;
   onViewCollection: (collection: Collection) => void;
+  isAuthenticated?: boolean;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollection }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollection, isAuthenticated = false }) => {
   const handleBookAppointment = () => {
     const message = `Hi! I'd like to book an appointment to discuss my furniture requirements. Please let me know your available slots.`;
     const encodedMessage = encodeURIComponent(message);
@@ -79,7 +80,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollect
               onClick={onStartProject}
               className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors"
             >
-              Start Project
+              {isAuthenticated ? 'Go to App' : 'Login'}
             </button>
           </div>
         </div>
@@ -103,7 +104,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollect
                   onClick={onStartProject}
                   className="flex items-center justify-center space-x-2 bg-amber-600 text-white px-8 py-4 rounded-lg hover:bg-amber-700 transition-all duration-200 shadow-lg hover:shadow-xl text-lg font-semibold"
                 >
-                  <span>Start Your Project</span>
+                  <span>{isAuthenticated ? 'Go to App' : 'Start Your Project'}</span>
                   <ArrowRight className="h-5 w-5" />
                 </button>
                 <button
@@ -260,7 +261,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollect
               onClick={onStartProject}
               className="bg-white text-amber-600 px-8 py-4 rounded-lg hover:bg-gray-100 transition-colors text-lg font-semibold shadow-lg"
             >
-              Start Your Project Now
+              {isAuthenticated ? 'Go to App Now' : 'Start Your Project Now'}
             </button>
             <button
               onClick={handleBookAppointment}
