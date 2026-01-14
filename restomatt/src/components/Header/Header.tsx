@@ -1,6 +1,7 @@
 import React from 'react';
-import { User, Settings, Users, LogOut, Home } from 'lucide-react';
+import { User, Settings, Users, LogOut, Home, FolderOpen, Shield } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface HeaderProps {
   onBackToLanding?: () => void;
@@ -8,6 +9,8 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onBackToLanding }) => {
   const { currentUser, switchUser, logout, availableUsers } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   if (!currentUser) return null;
 
@@ -28,22 +31,42 @@ const Header: React.FC<HeaderProps> = ({ onBackToLanding }) => {
 
           {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
-            {onBackToLanding && (
-              <button
-                onClick={onBackToLanding}
-                className="flex items-center space-x-1 text-gray-700 hover:text-amber-700 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                <Home className="h-4 w-4" />
-                <span>Home</span>
-              </button>
-            )}
-            <a href="#" className="text-gray-700 hover:text-amber-700 px-3 py-2 text-sm font-medium transition-colors">
-              Projects
-            </a>
+            <button
+              onClick={() => navigate('/')}
+              className={`flex items-center space-x-1 px-3 py-2 text-sm font-medium transition-colors ${
+                location.pathname === '/'
+                  ? 'text-amber-700 border-b-2 border-amber-700'
+                  : 'text-gray-700 hover:text-amber-700'
+              }`}
+            >
+              <Home className="h-4 w-4" />
+              <span>Home</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/app')}
+              className={`flex items-center space-x-1 px-3 py-2 text-sm font-medium transition-colors ${
+                location.pathname === '/app'
+                  ? 'text-amber-700 border-b-2 border-amber-700'
+                  : 'text-gray-700 hover:text-amber-700'
+              }`}
+            >
+              <FolderOpen className="h-4 w-4" />
+              <span>Projects</span>
+            </button>
+
             {currentUser.isAdmin && (
-              <a href="#admin" className="text-gray-700 hover:text-amber-700 px-3 py-2 text-sm font-medium transition-colors">
-                Admin
-              </a>
+              <button
+                onClick={() => navigate('/admin')}
+                className={`flex items-center space-x-1 px-3 py-2 text-sm font-medium transition-colors ${
+                  location.pathname === '/admin'
+                    ? 'text-amber-700 border-b-2 border-amber-700'
+                    : 'text-gray-700 hover:text-amber-700'
+                }`}
+              >
+                <Shield className="h-4 w-4" />
+                <span>Admin</span>
+              </button>
             )}
           </nav>
 

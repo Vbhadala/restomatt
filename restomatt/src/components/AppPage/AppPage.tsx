@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Home } from 'lucide-react';
+import { Plus, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProjects } from '../../hooks/useProjects';
 import { useProjectTypes } from '../../hooks/useProjectTypes';
@@ -8,14 +8,12 @@ import Header from '../Header/Header';
 import ProjectCard from '../ProjectCard/ProjectCard';
 import CreateProjectModal from '../CreateProjectModal/CreateProjectModal';
 import ProjectDetails from '../ProjectDetails/ProjectDetails';
-import { useNavigate } from 'react-router-dom';
 
 interface AppPageProps {
   currentUser: User;
 }
 
 const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
-  const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -92,10 +90,6 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
     setSelectedProject(null);
   };
 
-  const handleBackToLanding = () => {
-    navigate('/');
-  };
-
   const handleProjectUpdate = (updatedProject: Project) => {
     setSelectedProject(updatedProject);
   };
@@ -123,7 +117,7 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
   if (selectedProject) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header onBackToLanding={handleBackToLanding} />
+        <Header />
         <ProjectDetails
           project={selectedProject}
           projectTypes={projectTypes}
@@ -151,20 +145,9 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header onBackToLanding={handleBackToLanding} />
+      <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back to Landing Button */}
-        <div className="mb-6">
-          <button
-            onClick={handleBackToLanding}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <Home className="h-4 w-4" />
-            <span>Back to Home</span>
-          </button>
-        </div>
-
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Projects</h1>

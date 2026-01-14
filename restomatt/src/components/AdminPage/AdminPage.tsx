@@ -11,10 +11,6 @@ interface AdminPageProps {
 const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
   const navigate = useNavigate();
 
-  const handleBackToLanding = () => {
-    navigate('/');
-  };
-
   // Check if user is admin
   if (!currentUser.isAdmin) {
     return (
@@ -23,7 +19,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
           <p className="text-gray-600 mb-6">You need admin privileges to access this page.</p>
           <button
-            onClick={handleBackToLanding}
+            onClick={() => navigate('/')}
             className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
           >
             Go to Home
@@ -35,7 +31,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header onBackToLanding={handleBackToLanding} />
+      <Header />
       <AdminPanel />
     </div>
   );
