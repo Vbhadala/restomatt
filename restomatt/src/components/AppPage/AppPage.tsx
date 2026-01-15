@@ -56,15 +56,15 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
     customerAddress?: string;
     typeId: string;
   }) => {
-    const toastId = toast.loading('Creating project...');
+    const toastId = toast.loading('Creating quotation...');
     try {
       const newProject = await addProject(projectData);
-      toast.success('Project created successfully!', { id: toastId });
+      toast.success('Quotation created successfully!', { id: toastId });
       setSelectedProject(newProject);
       setIsCreateModalOpen(false);
     } catch (error: any) {
-      console.error('Error creating project:', error);
-      toast.error(error.message || 'Failed to create project. Please try again.', { id: toastId });
+      console.error('Error creating quotation:', error);
+      toast.error(error.message || 'Failed to create quotation. Please try again.', { id: toastId });
     }
   };
 
@@ -74,14 +74,14 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      const toastId = toast.loading('Deleting project...');
+    if (window.confirm('Are you sure you want to delete this quotation?')) {
+      const toastId = toast.loading('Deleting quotation...');
       try {
         await deleteProject(id);
-        toast.success('Project deleted successfully!', { id: toastId });
+        toast.success('Quotation deleted successfully!', { id: toastId });
       } catch (error) {
-        console.error('Error deleting project:', error);
-        toast.error('Failed to delete project. Please try again.', { id: toastId });
+        console.error('Error deleting quotation:', error);
+        toast.error('Failed to delete quotation. Please try again.', { id: toastId });
       }
     }
   };
@@ -146,8 +146,8 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Projects</h1>
-          <p className="text-gray-600">Create and manage your furniture design projects</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Quotations</h1>
+          <p className="text-gray-600">Create and manage your furniture quotations</p>
         </div>
 
         {/* Actions Bar */}
@@ -157,7 +157,7 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search projects..."
+                placeholder="Search quotations..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
@@ -176,23 +176,23 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
               className="flex items-center space-x-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
             >
               <Plus className="h-4 w-4" />
-              <span>New Project</span>
+              <span>New Quotation</span>
             </button>
           </div>
         </div>
 
-        {/* Projects Grid */}
+        {/* Quotations Grid */}
         {filteredProjects.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Plus className="h-12 w-12 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {projects.length === 0 ? 'No projects yet' : 'No projects found'}
+              {projects.length === 0 ? 'No quotations yet' : 'No quotations found'}
             </h3>
             <p className="text-gray-600 mb-6">
               {projects.length === 0
-                ? 'Get started by creating your first furniture design project'
+                ? 'Get started by creating your first furniture quotation'
                 : 'Try adjusting your search terms'
               }
             </p>
@@ -202,7 +202,7 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
                 className="inline-flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
               >
                 <Plus className="h-5 w-5" />
-                <span>Create Your First Project</span>
+                <span>Create Your First Quotation</span>
               </button>
             )}
           </div>

@@ -32,7 +32,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       show: true
     },
     {
-      name: 'Projects',
+      name: 'Quotations',
       path: '/app',
       icon: FolderOpen,
       show: true

@@ -52,7 +52,7 @@ const Header: React.FC<HeaderProps> = ({ onBackToLanding }) => {
               }`}
             >
               <FolderOpen className="h-4 w-4" />
-              <span>Projects</span>
+              <span>Quotations</span>
             </button>
 
             {currentUser.isAdmin && (

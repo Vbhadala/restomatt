@@ -64,8 +64,8 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Create New Project</h2>
-            <p className="text-sm text-gray-500">Give your project a name and select its type</p>
+            <h2 className="text-xl font-semibold text-gray-900">Create New Quotation</h2>
+            <p className="text-sm text-gray-500">Give your quotation a name and select its type</p>
           </div>
           <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="h-5 w-5 text-gray-600" />
@@ -74,17 +74,17 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[60vh] space-y-6">
-          {/* Project Name */}
+          {/* Quotation Name */}
           <div>
             <label htmlFor="project-name" className="block text-sm font-medium text-gray-700 mb-2">
-              Project Name
+              Quotation Name
             </label>
             <input
               id="project-name"
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="e.g., Modern Kitchen Renovation"
+              placeholder="e.g., Modern Kitchen Quotation"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               autoFocus
             />

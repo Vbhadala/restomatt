@@ -104,7 +104,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollect
                   onClick={onStartProject}
                   className="flex items-center justify-center space-x-2 bg-amber-600 text-white px-8 py-4 rounded-lg hover:bg-amber-700 transition-all duration-200 shadow-lg hover:shadow-xl text-lg font-semibold"
                 >
-                  <span>{isAuthenticated ? 'Go to App' : 'Start Your Project'}</span>
+                  <span>{isAuthenticated ? 'Go to App' : 'Get Quote'}</span>
                   <ArrowRight className="h-5 w-5" />
                 </button>
                 <button
@@ -261,7 +261,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollect
               onClick={onStartProject}
               className="bg-white text-amber-600 px-8 py-4 rounded-lg hover:bg-gray-100 transition-colors text-lg font-semibold shadow-lg"
             >
-              {isAuthenticated ? 'Go to App Now' : 'Start Your Project Now'}
+              {isAuthenticated ? 'Go to App Now' : 'Get Your Quote Now'}
             </button>
             <button
               onClick={handleBookAppointment}
