@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User as FirebaseUser, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { User } from '../types';
 
@@ -12,50 +12,75 @@ export const useAuth = () => {
 
   useEffect(() => {
     console.log('Setting up auth listener...');
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let userDocUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Clean up previous user document listener if exists
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+        userDocUnsubscribe = null;
+      }
+
       if (firebaseUser) {
         console.log('Firebase user authenticated:', firebaseUser.uid, firebaseUser.email);
-        // Get user data from Firestore
+
+        // Set up real-time listener for user document
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+
         try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const user = {
-              id: firebaseUser.uid,
-              name: userData.name || firebaseUser.displayName || 'User',
-              email: userData.email || firebaseUser.email || '',
-              avatar: firebaseUser.photoURL || '',
-              isAdmin: userData.isAdmin || false,
-            };
-            setCurrentUser(user);
-            console.log('User data set:', user);
-          } else {
+          // First check if document exists
+          const userDoc = await getDoc(userDocRef);
+
+          if (!userDoc.exists()) {
             // Create user document if it doesn't exist
-            const newUser = {
-              id: firebaseUser.uid,
+            const newUserData = {
               name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
               email: firebaseUser.email || '',
-              avatar: firebaseUser.photoURL || '',
-              isAdmin: false, // Default to non-admin
+              isAdmin: false,
             };
-            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-            setCurrentUser(newUser);
-            console.log('New user created and set:', newUser);
+            await setDoc(userDocRef, newUserData);
+            console.log('New user document created:', newUserData);
           }
+
+          // Now set up real-time listener for changes
+          userDocUnsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+            if (docSnapshot.exists()) {
+              const userData = docSnapshot.data();
+              const user = {
+                id: firebaseUser.uid,
+                name: userData.name || firebaseUser.displayName || 'User',
+                email: userData.email || firebaseUser.email || '',
+                avatar: firebaseUser.photoURL || '',
+                isAdmin: userData.isAdmin || false,
+              };
+              setCurrentUser(user);
+              console.log('User data updated from Firestore:', user);
+            }
+            setLoading(false);
+          }, (error) => {
+            console.error('Error listening to user document:', error);
+            setCurrentUser(null);
+            setLoading(false);
+          });
+
         } catch (error) {
           console.error('Error setting up user data:', error);
           setCurrentUser(null);
+          setLoading(false);
         }
       } else {
         console.log('No Firebase user - setting to null');
         setCurrentUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
       console.log('Cleaning up auth listener');
-      unsubscribe();
+      authUnsubscribe();
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+      }
     };
   }, []);
 
