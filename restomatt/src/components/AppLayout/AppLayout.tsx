@@ -27,14 +27,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const navigationItems = [
     {
       name: 'Home',
-      path: '/',
-      icon: Home,
-      show: true
-    },
-    {
-      name: 'Quotations',
       path: '/app',
-      icon: FolderOpen,
+      icon: Home,
       show: true
     },
     {
@@ -62,7 +56,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <aside className="hidden md:flex md:flex-col md:w-64 bg-white border-r border-gray-200">
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <div className="cursor-pointer" onClick={() => navigate('/')}>
+          <div className="cursor-pointer" onClick={() => navigate('/app')}>
             <h1 className="text-2xl font-bold text-amber-700">Restomatt</h1>
             <p className="text-xs text-gray-500 mt-1">Furniture Solutions</p>
           </div>
@@ -131,7 +125,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-4 py-3">
-          <div className="cursor-pointer" onClick={() => navigate('/')}>
+          <div className="cursor-pointer" onClick={() => navigate('/app')}>
             <h1 className="text-xl font-bold text-amber-700">Restomatt</h1>
           </div>
           <button
@@ -163,7 +157,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <div className="cursor-pointer" onClick={() => handleNavigation('/')}>
+          <div className="cursor-pointer" onClick={() => handleNavigation('/app')}>
             <h1 className="text-2xl font-bold text-amber-700">Restomatt</h1>
             <p className="text-xs text-gray-500 mt-1">Furniture Solutions</p>
           </div>
