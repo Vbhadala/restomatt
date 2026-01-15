@@ -10,6 +10,8 @@ import AdminPage from './components/AdminPage/AdminPage';
 import CRMPage from './components/CRMPage/CRMPage';
 import DayBookPage from './components/DayBookPage/DayBookPage';
 import AttendancePage from './components/AttendancePage/AttendancePage';
+import TasksPage from './components/TasksPage/TasksPage';
+import SettingsPage from './components/SettingsPage/SettingsPage';
 import CollectionPage from './components/CollectionPage/CollectionPage';
 import LoginModal from './components/LoginModal/LoginModal';
 import { Collection } from './data/collections';
@@ -95,6 +97,22 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ currentUser, onShowLogin }) => {
         element={
           <ProtectedRoute currentUser={currentUser}>
             <AttendancePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/tasks"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <TasksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/settings"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <SettingsPage />
           </ProtectedRoute>
         }
       />

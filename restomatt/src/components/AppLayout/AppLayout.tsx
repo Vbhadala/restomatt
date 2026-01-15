@@ -10,7 +10,8 @@ import {
   Settings,
   Users,
   BookOpen,
-  Calendar
+  Calendar,
+  ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -49,6 +50,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       name: 'Attendance',
       path: '/app/attendance',
       icon: Calendar,
+      show: true
+    },
+    {
+      name: 'Tasks',
+      path: '/app/tasks',
+      icon: ClipboardList,
       show: true
     },
     {
@@ -126,6 +133,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           {/* Settings & Logout */}
           <div className="space-y-1">
             <button
+              onClick={() => handleNavigation('/app/settings')}
               className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
             >
               <Settings className="h-4 w-4" />
@@ -227,6 +235,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           {/* Settings & Logout */}
           <div className="space-y-1">
             <button
+              onClick={() => handleNavigation('/app/settings')}
               className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
             >
               <Settings className="h-4 w-4" />

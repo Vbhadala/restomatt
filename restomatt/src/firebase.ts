@@ -112,6 +112,28 @@ service cloud.firestore {
         );
     }
 
+    // Tasks: Admins can create/update all tasks, Users can read their assigned tasks and update status/notes
+    match /tasks/{taskId} {
+      allow read: if request.auth != null &&
+        (
+          // Users can read tasks assigned to them
+          (resource != null && request.auth.uid == resource.data.assignedToId) ||
+          // Admins can read all tasks
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        );
+      allow create: if request.auth != null &&
+        // Only admins can create tasks
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow update: if request.auth != null &&
+        (
+          // Admins can update all fields
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true ||
+          // Users can only update status and notes of their assigned tasks
+          (request.auth.uid == resource.data.assignedToId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'notes', 'updatedAt']))
+        );
+    }
+
     // Collections can only have their own specific documents
     match /{document=**} {
       allow read, write: if false;

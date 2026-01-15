@@ -182,3 +182,28 @@ export interface AttendanceRecord {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type TaskStatus = 'open' | 'working' | 'closed';
+
+export interface TaskNote {
+  id: string;
+  note: string;
+  createdAt: Date;
+  createdBy: string;
+  createdByName: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  details: string;
+  dueDate: Date;
+  status: TaskStatus;
+  assignedToId: string;
+  assignedToName: string;
+  assignedById: string;
+  assignedByName: string;
+  notes: TaskNote[];
+  createdAt: Date;
+  updatedAt: Date;
+}
