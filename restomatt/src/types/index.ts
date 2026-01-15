@@ -117,3 +117,34 @@ export interface ProjectTemplate {
   createdAt: Date;
   userId: string;
 }
+
+export interface Lead {
+  id: string;
+  businessName: string;
+  contactPerson: string;
+  mobileNumber: string;
+  address: string;
+  status: LeadStatus;
+  userId: string;
+  followUpNotes: FollowUpNote[];
+  createdAt: Date;
+  updatedAt: Date;
+  lastFollowUpDate?: Date;
+  convertedToProjectId?: string;
+}
+
+export type LeadStatus =
+  | 'New Lead'
+  | 'Interested'
+  | 'Unanswered'
+  | 'Busy'
+  | 'Not Interested'
+  | 'Converted';
+
+export interface FollowUpNote {
+  id: string;
+  note: string;
+  createdAt: Date;
+  createdBy: string;
+  createdByName: string;
+}

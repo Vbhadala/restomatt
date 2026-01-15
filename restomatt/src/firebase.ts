@@ -71,6 +71,17 @@ service cloud.firestore {
         );
     }
 
+    // Users can only read/write their own leads (CRM)
+    match /leads/{leadId} {
+      allow read, write: if request.auth != null &&
+        (
+          // For existing documents: check owner
+          (resource != null && request.auth.uid == resource.data.userId) ||
+          // For new documents: check the data being written
+          (resource == null && request.auth.uid == request.resource.data.userId)
+        );
+    }
+
     // Collections can only have their own specific documents
     match /{document=**} {
       allow read, write: if false;
