@@ -35,8 +35,27 @@ auth.onAuthStateChanged(async (user) => {
     try {
       const token = await user.getIdToken();
       console.log('Current auth token retrieved successfully (first 50 chars):', token.substring(0, 50));
+
+      // Check Firestore for admin status
+      const { doc, getDoc } = await import('firebase/firestore');
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log('Firestore user data:', {
+          name: userData.name,
+          email: userData.email,
+          isAdmin: userData.isAdmin,
+          hasIsAdminField: 'isAdmin' in userData,
+          isAdminType: typeof userData.isAdmin,
+          isAdminValue: userData.isAdmin === true ? 'TRUE' : userData.isAdmin === false ? 'FALSE' : 'OTHER'
+        });
+      } else {
+        console.log('⚠️ Firestore user document does not exist for UID:', user.uid);
+      }
     } catch (error) {
-      console.error('Failed to get auth token:', error);
+      console.error('Failed to get auth token or user data:', error);
     }
   }
 });
