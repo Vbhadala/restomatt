@@ -16,7 +16,7 @@ const TasksPage: React.FC = () => {
   );
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | TaskStatus>('all');
 
   const handleCreateTask = async (
@@ -75,6 +75,12 @@ const TasksPage: React.FC = () => {
       return due < today && task.status !== 'closed';
     }).length;
   }, [tasks]);
+
+  // Get the current selected task from the live tasks array
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) return null;
+    return tasks.find(t => t.id === selectedTaskId) || null;
+  }, [selectedTaskId, tasks]);
 
   return (
     <AppLayout>
@@ -213,7 +219,7 @@ const TasksPage: React.FC = () => {
                   <TaskCard
                     key={task.id}
                     task={task}
-                    onClick={() => setSelectedTask(task)}
+                    onClick={() => setSelectedTaskId(task.id)}
                     isAdmin={currentUser?.isAdmin || false}
                   />
                 ))}
@@ -234,7 +240,7 @@ const TasksPage: React.FC = () => {
       <TaskDetailsModal
         task={selectedTask}
         isOpen={!!selectedTask}
-        onClose={() => setSelectedTask(null)}
+        onClose={() => setSelectedTaskId(null)}
         onStatusChange={handleStatusChange}
         onAddNote={handleAddNote}
         currentUserName={currentUser?.name || 'User'}

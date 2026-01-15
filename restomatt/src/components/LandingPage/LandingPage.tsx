@@ -68,7 +68,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStartProject, onViewCollect
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-amber-700">Restomatt</h1>
-              <p className="text-xs text-gray-500 ml-2">Furniture Solutions</p>
             </div>
             <nav className="hidden md:flex space-x-8">
               <a href="#gallery" className="text-gray-700 hover:text-amber-700 transition-colors">Gallery</a>

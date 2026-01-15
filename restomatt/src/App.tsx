@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { User } from './types';
 import LandingPage from './components/LandingPage/LandingPage';
+import HomePage from './components/HomePage/HomePage';
 import AppPage from './components/AppPage/AppPage';
 import AdminPage from './components/AdminPage/AdminPage';
-import AdminSetup from './components/AdminSetup/AdminSetup';
 import CRMPage from './components/CRMPage/CRMPage';
 import DayBookPage from './components/DayBookPage/DayBookPage';
 import AttendancePage from './components/AttendancePage/AttendancePage';
@@ -73,6 +73,14 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ currentUser, onShowLogin }) => {
         path="/app"
         element={
           <ProtectedRoute currentUser={currentUser}>
+            <HomePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/quotations"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
             {currentUser && <AppPage currentUser={currentUser} />}
           </ProtectedRoute>
         }
@@ -118,14 +126,6 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ currentUser, onShowLogin }) => {
         }
       />
       <Route
-        path="/admin-setup"
-        element={
-          <ProtectedRoute currentUser={currentUser}>
-            <AdminSetup />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/admin"
         element={
           <ProtectedRoute currentUser={currentUser}>
@@ -160,20 +160,44 @@ function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in
-        // Check if user is admin based on a custom claim or Firestore
-        const adminClaim = await firebaseUser.getIdTokenResult().catch(() => null);
-        const isAdminFromToken = adminClaim?.claims?.admin === true;
+        console.log('App.tsx - Firebase user authenticated:', firebaseUser.uid);
 
-        setCurrentUser({
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
-          email: firebaseUser.email || '',
-          avatar: firebaseUser.photoURL || undefined,
-          isAdmin: isAdminFromToken || false,
-        });
+        // Read admin status from Firestore instead of custom claims
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userSnapshot = await getDoc(userDocRef);
+
+          let isAdminValue = false;
+          if (userSnapshot.exists()) {
+            const userData = userSnapshot.data();
+            isAdminValue = userData.isAdmin || false;
+            console.log('App.tsx - Read isAdmin from Firestore:', isAdminValue);
+          } else {
+            console.log('App.tsx - User document does not exist in Firestore');
+          }
+
+          setCurrentUser({
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+            email: firebaseUser.email || '',
+            avatar: firebaseUser.photoURL || undefined,
+            isAdmin: isAdminValue,
+          });
+
+          console.log('App.tsx - Set currentUser with isAdmin:', isAdminValue);
+        } catch (error) {
+          console.error('App.tsx - Error reading user document:', error);
+          setCurrentUser({
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+            email: firebaseUser.email || '',
+            avatar: firebaseUser.photoURL || undefined,
+            isAdmin: false,
+          });
+        }
       } else {
         // User is signed out
+        console.log('App.tsx - No Firebase user');
         setCurrentUser(null);
       }
       setAuthLoading(false);

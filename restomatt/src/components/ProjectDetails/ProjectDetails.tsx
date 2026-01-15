@@ -413,8 +413,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Furniture Solutions', 20, 32);
-    doc.text('Phone: +91 96364 77399 | Email: info@restomatt.com', pageWidth - 20, 32, { align: 'right' });
+    doc.text('Phone: +91 96364 77399 | Email: info@restomatt.com', pageWidth - 20, 25, { align: 'right' });
 
     // Invoice Title
     doc.setFillColor(240, 240, 240);

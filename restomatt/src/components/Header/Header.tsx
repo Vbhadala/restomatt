@@ -24,7 +24,6 @@ const Header: React.FC<HeaderProps> = ({ onBackToLanding }) => {
           <div className="flex items-center">
             <div className="flex-shrink-0 cursor-pointer" onClick={onBackToLanding}>
               <h1 className="text-2xl font-bold text-amber-700">Restomatt</h1>
-              <p className="text-xs text-gray-500 -mt-1">Furniture Solutions</p>
             </div>
 
           </div>

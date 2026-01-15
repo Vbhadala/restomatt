@@ -65,9 +65,12 @@ auth.onAuthStateChanged(async (user) => {
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read/write their own user documents
+    // Users can read/write their own user documents, Admins can read all users
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null &&
+        (request.auth.uid == userId ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Project types and materials are shared - authenticated users can read/write

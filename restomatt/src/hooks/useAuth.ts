@@ -43,9 +43,14 @@ export const useAuth = () => {
           }
 
           // Now set up real-time listener for changes
+          console.log('Setting up onSnapshot listener for user document');
           userDocUnsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+            console.log('onSnapshot callback fired, document exists:', docSnapshot.exists());
             if (docSnapshot.exists()) {
               const userData = docSnapshot.data();
+              console.log('Raw userData from Firestore:', userData);
+              console.log('userData.isAdmin value:', userData.isAdmin, 'type:', typeof userData.isAdmin);
+
               const user = {
                 id: firebaseUser.uid,
                 name: userData.name || firebaseUser.displayName || 'User',
@@ -53,8 +58,11 @@ export const useAuth = () => {
                 avatar: firebaseUser.photoURL || '',
                 isAdmin: userData.isAdmin || false,
               };
+
+              console.log('Constructed user object:', user);
+              console.log('user.isAdmin BEFORE setCurrentUser:', user.isAdmin);
               setCurrentUser(user);
-              console.log('User data updated from Firestore:', user);
+              console.log('User data updated from Firestore - isAdmin:', user.isAdmin);
             }
             setLoading(false);
           }, (error) => {

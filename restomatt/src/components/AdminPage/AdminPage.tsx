@@ -11,6 +11,9 @@ interface AdminPageProps {
 const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
   const navigate = useNavigate();
 
+  console.log('AdminPage - currentUser:', currentUser);
+  console.log('AdminPage - currentUser.isAdmin:', currentUser.isAdmin);
+
   // Check if user is admin
   if (!currentUser.isAdmin) {
     return (

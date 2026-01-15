@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
+  FileText,
   Shield,
   LogOut,
   Menu,
@@ -25,6 +26,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { currentUser, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  console.log('AppLayout - currentUser:', currentUser);
+  console.log('AppLayout - currentUser.isAdmin:', currentUser?.isAdmin);
+
   if (!currentUser) return null;
 
   const navigationItems = [
@@ -32,6 +36,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       name: 'Home',
       path: '/app',
       icon: Home,
+      show: true
+    },
+    {
+      name: 'Quotations',
+      path: '/app/quotations',
+      icon: FileText,
       show: true
     },
     {
@@ -66,6 +76,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     }
   ];
 
+  console.log('navigationItems:', navigationItems);
+  console.log('Admin item show value:', navigationItems.find(item => item.name === 'Admin')?.show);
+
   const handleNavigation = (path: string) => {
     navigate(path);
     setIsMobileMenuOpen(false);
@@ -85,7 +98,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <div className="p-6 border-b border-gray-200">
           <div className="cursor-pointer" onClick={() => navigate('/app')}>
             <h1 className="text-2xl font-bold text-amber-700">Restomatt</h1>
-            <p className="text-xs text-gray-500 mt-1">Furniture Solutions</p>
           </div>
         </div>
 
@@ -187,7 +199,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <div className="p-6 border-b border-gray-200">
           <div className="cursor-pointer" onClick={() => handleNavigation('/app')}>
             <h1 className="text-2xl font-bold text-amber-700">Restomatt</h1>
-            <p className="text-xs text-gray-500 mt-1">Furniture Solutions</p>
           </div>
         </div>
 
