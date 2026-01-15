@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Home,
-  FolderOpen,
   Shield,
   LogOut,
   Menu,
   X,
   User,
-  Settings
+  Settings,
+  Users,
+  BookOpen,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -29,6 +31,24 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       name: 'Home',
       path: '/app',
       icon: Home,
+      show: true
+    },
+    {
+      name: 'CRM',
+      path: '/app/crm',
+      icon: Users,
+      show: true
+    },
+    {
+      name: 'DayBook',
+      path: '/app/daybook',
+      icon: BookOpen,
+      show: true
+    },
+    {
+      name: 'Attendance',
+      path: '/app/attendance',
+      icon: Calendar,
       show: true
     },
     {
