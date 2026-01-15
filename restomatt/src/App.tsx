@@ -7,6 +7,7 @@ import { User } from './types';
 import LandingPage from './components/LandingPage/LandingPage';
 import AppPage from './components/AppPage/AppPage';
 import AdminPage from './components/AdminPage/AdminPage';
+import AdminSetup from './components/AdminSetup/AdminSetup';
 import CRMPage from './components/CRMPage/CRMPage';
 import DayBookPage from './components/DayBookPage/DayBookPage';
 import AttendancePage from './components/AttendancePage/AttendancePage';
@@ -113,6 +114,14 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ currentUser, onShowLogin }) => {
         element={
           <ProtectedRoute currentUser={currentUser}>
             <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin-setup"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminSetup />
           </ProtectedRoute>
         }
       />
