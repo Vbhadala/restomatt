@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../Header/Header';
+import AppLayout from '../AppLayout/AppLayout';
 import AdminPanel from '../AdminPanel/AdminPanel';
 import { User } from '../../types';
 
@@ -30,10 +30,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <AppLayout>
       <AdminPanel />
-    </div>
+    </AppLayout>
   );
 };
 

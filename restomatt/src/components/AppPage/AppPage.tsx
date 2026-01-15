@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useProjects } from '../../hooks/useProjects';
 import { useProjectTypes } from '../../hooks/useProjectTypes';
 import { Project, User } from '../../types';
-import Header from '../Header/Header';
+import AppLayout from '../AppLayout/AppLayout';
 import ProjectCard from '../ProjectCard/ProjectCard';
 import CreateProjectModal from '../CreateProjectModal/CreateProjectModal';
 import ProjectDetails from '../ProjectDetails/ProjectDetails';
@@ -105,19 +105,17 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
 
   if (projectsLoading || typesLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (selectedProject) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
+      <AppLayout>
         <ProjectDetails
           project={selectedProject}
           projectTypes={projectTypes}
@@ -139,15 +137,13 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
           updateItemGroup={updateItemGroup}
           deleteItemGroup={deleteItemGroup}
         />
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <AppLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Projects</h1>
@@ -223,16 +219,16 @@ const AppPage: React.FC<AppPageProps> = ({ currentUser }) => {
             ))}
           </div>
         )}
-      </main>
 
-      {/* Create Project Modal */}
-      <CreateProjectModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreateProject={handleCreateProject}
-        projectTypes={projectTypes}
-      />
-    </div>
+        {/* Create Project Modal */}
+        <CreateProjectModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreateProject={handleCreateProject}
+          projectTypes={projectTypes}
+        />
+      </div>
+    </AppLayout>
   );
 };
 
