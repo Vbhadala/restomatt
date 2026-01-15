@@ -82,6 +82,36 @@ service cloud.firestore {
         );
     }
 
+    // Users can only read/write their own activities (DayBook)
+    match /activities/{activityId} {
+      allow read, write: if request.auth != null &&
+        (
+          // For existing documents: check owner
+          (resource != null && request.auth.uid == resource.data.userId) ||
+          // For new documents: check the data being written
+          (resource == null && request.auth.uid == request.resource.data.userId)
+        );
+    }
+
+    // Users can only read/write their own attendance records
+    // Admins can read all attendance records
+    match /attendance/{attendanceId} {
+      allow read: if request.auth != null &&
+        (
+          // Users can read their own records
+          (resource != null && request.auth.uid == resource.data.userId) ||
+          // Admins can read all records
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+        );
+      allow write: if request.auth != null &&
+        (
+          // For existing documents: check owner
+          (resource != null && request.auth.uid == resource.data.userId) ||
+          // For new documents: check the data being written
+          (resource == null && request.auth.uid == request.resource.data.userId)
+        );
+    }
+
     // Collections can only have their own specific documents
     match /{document=**} {
       allow read, write: if false;

@@ -148,3 +148,37 @@ export interface FollowUpNote {
   createdBy: string;
   createdByName: string;
 }
+
+export interface DayActivity {
+  id: string;
+  date: Date;
+  summary: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  userId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GeoLocation {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  timestamp: Date;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  date: Date; // Normalized to start of day for querying
+  checkInTime?: Date;
+  checkInLocation?: GeoLocation;
+  checkOutTime?: Date;
+  checkOutLocation?: GeoLocation;
+  totalHours?: number;
+  status: 'checked-in' | 'checked-out' | 'absent' | 'leave';
+  leaveReason?: string; // For planned leaves
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
