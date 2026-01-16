@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -21,6 +21,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+export const googleProvider = new GoogleAuthProvider();
 
 // Debug authentication state
 auth.onAuthStateChanged(async (user) => {
@@ -138,14 +139,19 @@ service cloud.firestore {
     match /tasks/{taskId} {
       allow read: if request.auth != null &&
         (
-          // Users can read tasks assigned to them
+          // Users can read tasks assigned to them (check both existing and new documents)
           (resource != null && request.auth.uid == resource.data.assignedToId) ||
+          (resource == null && request.auth.uid == request.resource.data.assignedToId) ||
           // Admins can read all tasks
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
         );
       allow create: if request.auth != null &&
-        // Only admins can create tasks
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        (
+          // Only admins can create tasks
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true ||
+          // Users can create tasks assigned to themselves
+          request.auth.uid == request.resource.data.assignedToId
+        );
       allow update: if request.auth != null &&
         (
           // Admins can update all fields
