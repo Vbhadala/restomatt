@@ -18,7 +18,7 @@ export const useDayBook = (userId: string) => {
 
     // Real-time listener for activities
     const q = query(
-      collection(db, 'activities'),
+      collection(db, 'dayActivities'),
       where('userId', '==', userId),
       orderBy('date', 'desc')
     );
@@ -63,7 +63,7 @@ export const useDayBook = (userId: string) => {
     console.log('Creating activity for user:', userId);
 
     try {
-      const docRef = await addDoc(collection(db, 'activities'), newActivity);
+      const docRef = await addDoc(collection(db, 'dayActivities'), newActivity);
       console.log('Activity created successfully:', docRef.id);
       return { ...newActivity, id: docRef.id } as DayActivity;
     } catch (error: any) {
@@ -91,7 +91,7 @@ export const useDayBook = (userId: string) => {
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
 
-    const activityRef = doc(db, 'activities', id);
+    const activityRef = doc(db, 'dayActivities', id);
     await updateDoc(activityRef, {
       ...cleanUpdates,
       updatedAt: new Date(),
@@ -99,7 +99,7 @@ export const useDayBook = (userId: string) => {
   };
 
   const deleteActivity = async (id: string) => {
-    await deleteDoc(doc(db, 'activities', id));
+    await deleteDoc(doc(db, 'dayActivities', id));
   };
 
   return {
