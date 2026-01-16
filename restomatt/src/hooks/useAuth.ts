@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User as FirebaseUser, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { User } from '../types';
@@ -13,6 +13,17 @@ export const useAuth = () => {
   useEffect(() => {
     console.log('Setting up auth listener...');
     let userDocUnsubscribe: (() => void) | null = null;
+
+    // Handle redirect result from Google Sign-In on mobile
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          console.log('Google redirect sign-in successful:', result.user.email);
+        }
+      })
+      .catch((error) => {
+        console.error('Google redirect sign-in error:', error.code, error.message);
+      });
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       // Clean up previous user document listener if exists

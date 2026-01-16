@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../../firebase';
 
 interface LoginModalProps {
   onClose: () => void;
 }
+
+// Detect mobile device
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -58,30 +63,37 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     setError('');
 
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
+      if (isMobile()) {
+        // Use redirect for mobile - smoother experience
+        await signInWithRedirect(auth, googleProvider);
+        // Note: The page will redirect, so code below won't execute
+        // The redirect result is handled by useAuth hook or a separate effect
+      } else {
+        // Use popup for desktop
+        const result = await signInWithPopup(auth, googleProvider);
+        const user = result.user;
 
-      // Check if user document exists, create if not
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
+        // Check if user document exists, create if not
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
 
-      if (!userDoc.exists()) {
-        const userData = {
-          name: user.displayName || user.email?.split('@')[0] || 'User',
-          email: user.email || '',
-          isAdmin: false,
-        };
-        await setDoc(userDocRef, userData);
+        if (!userDoc.exists()) {
+          const userData = {
+            name: user.displayName || user.email?.split('@')[0] || 'User',
+            email: user.email || '',
+            isAdmin: false,
+          };
+          await setDoc(userDocRef, userData);
+        }
+
+        onClose();
       }
-
-      onClose();
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user') {
         setError('Sign-in was cancelled');
       } else {
         setError(getErrorMessage(error.code));
       }
-    } finally {
       setLoading(false);
     }
   };
