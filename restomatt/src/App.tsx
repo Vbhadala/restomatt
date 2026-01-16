@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { User } from './types';
 import LandingPage from './components/LandingPage/LandingPage';
@@ -173,7 +173,15 @@ function App() {
             isAdminValue = userData.isAdmin || false;
             console.log('App.tsx - Read isAdmin from Firestore:', isAdminValue);
           } else {
-            console.log('App.tsx - User document does not exist in Firestore');
+            // Create user document for new users (e.g., Google Sign-In redirect)
+            console.log('App.tsx - Creating user document for new user');
+            const newUserData = {
+              name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+              email: firebaseUser.email || '',
+              isAdmin: false,
+            };
+            await setDoc(userDocRef, newUserData);
+            console.log('App.tsx - User document created');
           }
 
           setCurrentUser({
