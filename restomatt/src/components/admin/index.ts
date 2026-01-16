@@ -1,0 +1,9 @@
+export { default as AdminLayout } from './AdminLayout';
+export { default as AdminDashboard } from './AdminDashboard';
+export { default as AdminUsersPage } from './AdminUsersPage';
+export { default as AdminQuotationsPage } from './AdminQuotationsPage';
+export { default as AdminLeadsPage } from './AdminLeadsPage';
+export { default as AdminTasksPage } from './AdminTasksPage';
+export { default as AdminAttendancePage } from './AdminAttendancePage';
+export { default as AdminDayBookPage } from './AdminDayBookPage';
+export { default as AdminSettingsPage } from './AdminSettingsPage';

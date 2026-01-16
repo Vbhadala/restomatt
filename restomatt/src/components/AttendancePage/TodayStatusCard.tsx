@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, MapPin, LogIn, LogOut, Loader2, XCircle } from 'lucide-react';
+import { Clock, MapPin, LogIn, LogOut, Loader2, XCircle, ExternalLink } from 'lucide-react';
 import { AttendanceRecord } from '../../types';
 
 interface TodayStatusCardProps {
@@ -77,12 +77,15 @@ const TodayStatusCard: React.FC<TodayStatusCardProps> = ({
               <MapPin className="h-4 w-4 text-gray-600 mt-0.5" />
               <div>
                 <p className="text-xs text-gray-500">Location</p>
-                <p className="font-medium text-gray-900 text-xs">
-                  {todayRecord.checkInLocation.latitude.toFixed(6)}, {todayRecord.checkInLocation.longitude.toFixed(6)}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Accuracy: ±{Math.round(todayRecord.checkInLocation.accuracy)}m
-                </p>
+                <a
+                  href={`https://www.google.com/maps?q=${todayRecord.checkInLocation.latitude},${todayRecord.checkInLocation.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 text-amber-600 hover:text-amber-700 font-medium text-xs"
+                >
+                  <span>View Location</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
             </div>
           </div>

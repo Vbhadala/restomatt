@@ -66,103 +66,146 @@ auth.onAuthStateChanged(async (user) => {
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can read/write their own user documents, Admins can read all users
+
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user owns the resource
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users collection - users can read/write their own, admins can read all
     match /users/{userId} {
-      allow read: if request.auth != null &&
-        (request.auth.uid == userId ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if isAuthenticated() && isOwner(userId);
+      // Allow admins to update any user (for toggling admin status)
+      allow update: if isAdmin();
     }
 
     // Project types and materials are shared - authenticated users can read/write
     match /projectTypes/{document} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
     match /materials/{document} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
 
-    // Users can only read/write their own projects
+    // Projects - users can read/write their own, admins can read all
     match /projects/{projectId} {
-      allow read, write: if request.auth != null &&
+      allow read: if isAuthenticated() &&
+        (
+          // Users can read their own projects
+          (resource != null && isOwner(resource.data.userId)) ||
+          // Admins can read all projects
+          isAdmin()
+        );
+      allow write: if isAuthenticated() &&
         (
           // For existing documents: check owner
-          (resource != null && request.auth.uid == resource.data.userId) ||
+          (resource != null && isOwner(resource.data.userId)) ||
           // For new documents: check the data being written
-          (resource == null && request.auth.uid == request.resource.data.userId)
+          (resource == null && isOwner(request.resource.data.userId))
         );
+      // Allow admins to delete any project
+      allow delete: if isAdmin();
     }
 
-    // Users can only read/write their own leads (CRM)
+    // Leads (CRM) - users can read/write their own, admins can read all
     match /leads/{leadId} {
-      allow read, write: if request.auth != null &&
+      allow read: if isAuthenticated() &&
+        (
+          // Users can read their own leads
+          (resource != null && isOwner(resource.data.userId)) ||
+          // Admins can read all leads
+          isAdmin()
+        );
+      allow write: if isAuthenticated() &&
         (
           // For existing documents: check owner
-          (resource != null && request.auth.uid == resource.data.userId) ||
+          (resource != null && isOwner(resource.data.userId)) ||
           // For new documents: check the data being written
-          (resource == null && request.auth.uid == request.resource.data.userId)
+          (resource == null && isOwner(request.resource.data.userId))
+        );
+      // Allow admins to delete any lead
+      allow delete: if isAdmin();
+    }
+
+    // Day Activities (DayBook) - users can read/write their own, admins can read all
+    match /dayActivities/{activityId} {
+      allow read: if isAuthenticated() &&
+        (
+          // Users can read their own activities
+          (resource != null && isOwner(resource.data.userId)) ||
+          // Admins can read all activities
+          isAdmin()
+        );
+      allow write: if isAuthenticated() &&
+        (
+          // For existing documents: check owner
+          (resource != null && isOwner(resource.data.userId)) ||
+          // For new documents: check the data being written
+          (resource == null && isOwner(request.resource.data.userId))
         );
     }
 
-    // Users can only read/write their own activities (DayBook)
-    match /activities/{activityId} {
-      allow read, write: if request.auth != null &&
-        (
-          // For existing documents: check owner
-          (resource != null && request.auth.uid == resource.data.userId) ||
-          // For new documents: check the data being written
-          (resource == null && request.auth.uid == request.resource.data.userId)
-        );
-    }
-
-    // Users can only read/write their own attendance records
-    // Admins can read all attendance records
+    // Attendance - users can read/write their own, admins can read all
     match /attendance/{attendanceId} {
-      allow read: if request.auth != null &&
+      allow read: if isAuthenticated() &&
         (
           // Users can read their own records
-          (resource != null && request.auth.uid == resource.data.userId) ||
+          (resource != null && isOwner(resource.data.userId)) ||
           // Admins can read all records
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+          isAdmin()
         );
-      allow write: if request.auth != null &&
+      allow write: if isAuthenticated() &&
         (
           // For existing documents: check owner
-          (resource != null && request.auth.uid == resource.data.userId) ||
+          (resource != null && isOwner(resource.data.userId)) ||
           // For new documents: check the data being written
-          (resource == null && request.auth.uid == request.resource.data.userId)
+          (resource == null && isOwner(request.resource.data.userId))
         );
     }
 
-    // Tasks: Admins can create/update all tasks, Users can read their assigned tasks and update status/notes
+    // Tasks - users can read assigned tasks, admins can read/write all
     match /tasks/{taskId} {
-      allow read: if request.auth != null &&
+      allow read: if isAuthenticated() &&
         (
-          // Users can read tasks assigned to them (check both existing and new documents)
-          (resource != null && request.auth.uid == resource.data.assignedToId) ||
-          (resource == null && request.auth.uid == request.resource.data.assignedToId) ||
+          // Users can read tasks assigned to them
+          (resource != null && isOwner(resource.data.assignedToId)) ||
+          // Users can read tasks they created
+          (resource != null && isOwner(resource.data.assignedById)) ||
           // Admins can read all tasks
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+          isAdmin()
         );
-      allow create: if request.auth != null &&
+      allow create: if isAuthenticated() &&
         (
-          // Only admins can create tasks
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true ||
+          // Admins can create tasks for anyone
+          isAdmin() ||
           // Users can create tasks assigned to themselves
-          request.auth.uid == request.resource.data.assignedToId
+          isOwner(request.resource.data.assignedToId)
         );
-      allow update: if request.auth != null &&
+      allow update: if isAuthenticated() &&
         (
           // Admins can update all fields
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true ||
+          isAdmin() ||
           // Users can only update status and notes of their assigned tasks
-          (request.auth.uid == resource.data.assignedToId &&
+          (isOwner(resource.data.assignedToId) &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'notes', 'updatedAt']))
         );
+      allow delete: if isAdmin();
     }
 
-    // Collections can only have their own specific documents
+    // Catch-all: deny access to any other collections
     match /{document=**} {
       allow read, write: if false;
     }

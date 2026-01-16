@@ -7,7 +7,6 @@ import { User } from './types';
 import LandingPage from './components/LandingPage/LandingPage';
 import HomePage from './components/HomePage/HomePage';
 import AppPage from './components/AppPage/AppPage';
-import AdminPage from './components/AdminPage/AdminPage';
 import CRMPage from './components/CRMPage/CRMPage';
 import DayBookPage from './components/DayBookPage/DayBookPage';
 import AttendancePage from './components/AttendancePage/AttendancePage';
@@ -16,6 +15,16 @@ import SettingsPage from './components/SettingsPage/SettingsPage';
 import CollectionPage from './components/CollectionPage/CollectionPage';
 import LoginModal from './components/LoginModal/LoginModal';
 import { Collection } from './data/collections';
+import {
+  AdminDashboard,
+  AdminUsersPage,
+  AdminQuotationsPage,
+  AdminLeadsPage,
+  AdminTasksPage,
+  AdminAttendancePage,
+  AdminDayBookPage,
+  AdminSettingsPage,
+} from './components/admin';
 
 // Protected Route component
 interface ProtectedRouteProps {
@@ -125,11 +134,68 @@ const AppRoutes: React.FC<AppRoutesProps> = ({ currentUser, onShowLogin }) => {
           </ProtectedRoute>
         }
       />
+      {/* Admin Routes */}
       <Route
         path="/admin"
         element={
           <ProtectedRoute currentUser={currentUser}>
-            {currentUser && <AdminPage currentUser={currentUser} />}
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/quotations"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminQuotationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/leads"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminLeadsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/tasks"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminTasksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/attendance"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminAttendancePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/daybook"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminDayBookPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute currentUser={currentUser}>
+            <AdminSettingsPage />
           </ProtectedRoute>
         }
       />
